@@ -1,0 +1,16 @@
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.sso
+*.jks
+*.zip
+*.log
+.oci/
+wallet*/
+Wallet*/
+tnsnames.ora
+sqlnet.ora
+ojdbc.properties
+output/

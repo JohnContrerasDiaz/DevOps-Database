@@ -1,0 +1,31 @@
+version: 0.1
+component: command
+timeoutInSeconds: 300
+shell: bash
+failImmediatelyOnError: true
+
+env:
+  variables:
+    DB_HOST: "uepanbou.adb.us-chicago-1.oraclecloud.com"
+    DB_PORT: "1522"
+
+steps:
+  - type: Command
+    name: "Check SQLcl and ATP connectivity"
+    timeoutInSeconds: 120
+    command: |
+      set -euo pipefail
+
+      echo "STEP 1: Check SQLcl"
+      command -v sql
+      sql -version
+
+      echo "STEP 2: Resolve ATP private hostname"
+      getent ahostsv4 "$DB_HOST"
+
+      echo "STEP 3: Check TCP port 1522"
+      timeout 15 bash -euc \
+        'exec 3<>/dev/tcp/"$1"/"$2"; exec 3>&-; exec 3<&-' \
+        probe "$DB_HOST" "$DB_PORT"
+
+      echo "NETWORK_PROBE_OK"

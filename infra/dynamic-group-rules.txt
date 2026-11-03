@@ -1,0 +1,9 @@
+# Dominio Default / grupo existente DG-DEVOPS-SVC.
+# En el editor: Match any rules defined below.
+# Introducir cada ALL en un campo Rule separado; no envolver con ANY anidado.
+
+# Rule 1
+ALL {resource.type = 'devopsdeploypipeline', resource.compartment.id = 'ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa'}
+
+# Rule 2
+ALL {resource.type = 'devopsbuildpipeline', resource.compartment.id = 'ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa'}

@@ -1,0 +1,90 @@
+# Read-only DEV login probe. Inline artifact; Allow parameterization OFF.
+# Uses OCI CLI resource principal to retrieve the existing connection and SSO secret.
+# No user OCI API keys/config, no bucket, and no DDL.
+version: 0.1
+component: command
+timeoutInSeconds: 600
+shell: bash
+failImmediatelyOnError: true
+env:
+  variables:
+    CONNECTION_OCID: "ocid1.databasetoolsconnection.oc1.us-chicago-1.amaaaaaacj6z5kiayoiodu263eacr6dshwagahee5jvjq7hn2ohayunv2hhq"
+steps:
+  - type: Command
+    name: "Connect as DEVOPS_DEMO using Database Tools metadata"
+    timeoutInSeconds: 480
+    command: |
+      set +x
+      set -euo pipefail
+      umask 077
+      for tool in oci sql jar base64 timeout; do command -v "$tool" >/dev/null; done
+      probe_dir=$(mktemp -d /tmp/dbtools-login.XXXXXXXX)
+      trap 'unset db_password; rm -rf -- "$probe_dir"' EXIT
+      export OCI_CLI_AUTH=resource_principal
+      export OCI_CLI_REGION=us-chicago-1
+
+      echo "STEP 1: Read Database Tools connection"
+      conn_field() {
+        oci dbtools connection get --connection-id "$CONNECTION_OCID" \
+          --auth resource_principal --region us-chicago-1 --query "$1" --raw-output
+      }
+      db_user=$(conn_field 'data."user-name"')
+      descriptor=$(conn_field 'data."connection-string"')
+      password_secret=$(conn_field 'data."user-password"."secret-id"')
+      wallet_secret=$(conn_field 'data."key-stores"[0]."key-store-content"."secret-id"')
+      wallet_type=$(conn_field 'data."key-stores"[0]."key-store-type"')
+      [[ "$db_user" == DEVOPS_DEMO ]]
+      [[ "$wallet_type" == SSO ]]
+      [[ "$password_secret" == ocid1.vaultsecret.* && "$wallet_secret" == ocid1.vaultsecret.* ]]
+      if ! printf '%s' "$descriptor" | grep -Eiq '\(port[[:space:]]*=[[:space:]]*1522\)'; then
+        echo "Expected the validated mTLS descriptor on port 1522."
+        exit 1
+      fi
+
+      echo "STEP 2: Retrieve password and SSO wallet without printing content"
+      secret_content() {
+        oci secrets secret-bundle get --secret-id "$1" --stage CURRENT \
+          --auth resource_principal --region us-chicago-1 \
+          --query 'data."secret-bundle-content".content' --raw-output
+      }
+      db_password=$(secret_content "$password_secret" | base64 --decode)
+      if [[ -z "$db_password" || "$db_password" == *$'\n'* || "$db_password" == *$'\r'* || "$db_password" == *'"'* ]]; then
+        echo "Password content cannot be represented safely in this login script."
+        exit 1
+      fi
+      secret_content "$wallet_secret" | base64 --decode > "$probe_dir/cwallet.sso"
+      [[ -s "$probe_dir/cwallet.sso" ]]
+      # Reject a ZIP saved as the SSO secret; do not inspect or print credential contents.
+      if [[ "$(head -c 2 "$probe_dir/cwallet.sso")" == PK ]]; then
+        echo "The wallet secret contains a ZIP; this probe requires cwallet.sso content."
+        exit 1
+      fi
+      printf 'devops_target = %s\n' "$descriptor" > "$probe_dir/tnsnames.ora"
+      printf 'WALLET_LOCATION=(SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY="%s")))\nSSL_SERVER_DN_MATCH=YES\n' "$probe_dir" > "$probe_dir/sqlnet.ora"
+      jar cf "$probe_dir/wallet.zip" -C "$probe_dir" cwallet.sso -C "$probe_dir" tnsnames.ora -C "$probe_dir" sqlnet.ora
+      export TNS_ADMIN="$probe_dir"
+
+      echo "STEP 3: Non-interactive authentication (login probe v2)"
+      # Use a protected SQL file: never invoke JLine's interactive password reader.
+      # The secret is not an OS command argument and is not printed to deployment logs.
+      {
+        printf '%s\n' 'set echo off' 'set verify off' 'set define off'
+        printf '%s\n' 'whenever oserror exit failure' 'whenever sqlerror exit failure'
+        printf 'connect DEVOPS_DEMO/"%s"@devops_target\n' "$db_password"
+        printf '%s\n' 'set heading off' 'set feedback off' 'set pagesize 0'
+        printf '%s\n' "SELECT CASE WHEN USER = 'DEVOPS_DEMO' AND SYS_CONTEXT('USERENV','CURRENT_SCHEMA') = 'DEVOPS_DEMO' THEN 'DBTOOLS_LOGIN_OK:DEVOPS_DEMO' ELSE 'DBTOOLS_LOGIN_WRONG_USER' END FROM DUAL;"
+        printf '%s\n' 'exit success'
+      } > "$probe_dir/login.sql"
+      unset db_password
+      if ! timeout 180 sql -S -L -cloudconfig "$probe_dir/wallet.zip" /nolog @"$probe_dir/login.sql" </dev/null > "$probe_dir/sqlcl-output.txt" 2>&1; then
+        echo "SQLcl login probe failed; error codes (raw output withheld to protect credentials):"
+        grep -Eo '(ORA|SP2|SQLCL)-[0-9]+' "$probe_dir/sqlcl-output.txt" | sort -u || true
+        exit 1
+      fi
+      if ! grep -Eq '^[[:space:]]*DBTOOLS_LOGIN_OK:DEVOPS_DEMO[[:space:]]*$' "$probe_dir/sqlcl-output.txt"; then
+        echo "Expected identity marker missing; probe failed."
+        grep -Eo '(ORA|SP2|SQLCL)-[0-9]+' "$probe_dir/sqlcl-output.txt" | sort -u || true
+        exit 1
+      fi
+      echo "DBTOOLS_LOGIN_OK:DEVOPS_DEMO"
+      echo "DBTOOLS_LOGIN_PROBE_SUCCEEDED"

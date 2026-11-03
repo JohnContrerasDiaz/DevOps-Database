@@ -1,0 +1,14 @@
+# Política consolidada del laboratorio para Default/DG-DEVOPS-SVC.
+# Crear/editar en root o ancestro común a DATABASE-DEVOPS y red.
+# Una sentencia por línea en el editor manual. No copiar comentarios al editor.
+# manage generic-artifacts es la corrección que permitió publicar versiones nuevas.
+Allow dynamic-group Default/DG-DEVOPS-SVC to manage devops-family in compartment id ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa
+Allow dynamic-group Default/DG-DEVOPS-SVC to manage compute-container-instances in compartment id ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa
+Allow dynamic-group Default/DG-DEVOPS-SVC to manage compute-containers in compartment id ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa
+Allow dynamic-group Default/DG-DEVOPS-SVC to use vnics in compartment id ocid1.compartment.oc1..aaaaaaaa2sjgd3dlxfmlmxkowtir2vykrws75bjrg6kinussk7mo4phax7ba
+Allow dynamic-group Default/DG-DEVOPS-SVC to use subnets in compartment id ocid1.compartment.oc1..aaaaaaaa2sjgd3dlxfmlmxkowtir2vykrws75bjrg6kinussk7mo4phax7ba
+Allow dynamic-group Default/DG-DEVOPS-SVC to use dhcp-options in compartment id ocid1.compartment.oc1..aaaaaaaa2sjgd3dlxfmlmxkowtir2vykrws75bjrg6kinussk7mo4phax7ba
+Allow dynamic-group Default/DG-DEVOPS-SVC to use network-security-groups in compartment id ocid1.compartment.oc1..aaaaaaaa2sjgd3dlxfmlmxkowtir2vykrws75bjrg6kinussk7mo4phax7ba
+Allow dynamic-group Default/DG-DEVOPS-SVC to read database-tools-connections in compartment DATABASE-DEVOPS where target.resource.id = 'ocid1.databasetoolsconnection.oc1.us-chicago-1.amaaaaaacj6z5kiayoiodu263eacr6dshwagahee5jvjq7hn2ohayunv2hhq'
+Allow dynamic-group Default/DG-DEVOPS-SVC to read secret-bundles in compartment DATABASE-DEVOPS where any {target.secret.id = 'ocid1.vaultsecret.oc1.us-chicago-1.amaaaaaacj6z5kiadwexzpdzyukjfbv67l6ou3xwtk63kqt6y6cco2kryzoa', target.secret.id = 'ocid1.vaultsecret.oc1.us-chicago-1.amaaaaaacj6z5kialvko46bdcpbkpxmjmf27zobxgo5o5d3xqyg4ezxxkxpq'}
+Allow dynamic-group Default/DG-DEVOPS-SVC to manage generic-artifacts in compartment id ocid1.compartment.oc1..aaaaaaaaobjorjhdznidcrbfst5gwyzl4x4cjopcxkkwnst4bxm7a3kribpa

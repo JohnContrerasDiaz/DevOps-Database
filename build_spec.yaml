@@ -1,0 +1,51 @@
+version: 0.1
+component: build
+timeoutInSeconds: 600
+shell: bash
+failImmediatelyOnError: true
+env:
+  exportedVariables:
+    - SOURCE_COMMIT
+    - PACKAGE_VERSION
+    - PACKAGE_SHA256
+steps:
+  - type: Command
+    name: Package versioned database changes
+    timeoutInSeconds: 300
+    command: |
+      set -euo pipefail
+      cd "$OCI_PRIMARY_SOURCE_DIR"
+      export SOURCE_COMMIT="$OCI_PRIMARY_SOURCE_COMMIT_HASH"
+      [[ "$SOURCE_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]
+      test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+      export PACKAGE_VERSION="${SOURCE_COMMIT}-${OCI_BUILD_RUN_ID##*.}"
+      PACKAGE_DIR=$(mktemp -d)
+      trap 'rm -rf -- "$PACKAGE_DIR"' EXIT
+      mkdir -p output
+      git archive --format=tar "$SOURCE_COMMIT" db scripts > "$PACKAGE_DIR/source.tar"
+      mkdir "$PACKAGE_DIR/content"
+      tar -xf "$PACKAGE_DIR/source.tar" -C "$PACKAGE_DIR/content"
+      cd "$PACKAGE_DIR/content"
+      test -s db/changelog.xml
+      test -s scripts/verify.sql
+      if find db scripts -type l -print -quit | grep -q .; then
+        echo "ERROR: symbolic links are not allowed in the package"
+        exit 1
+      fi
+      printf 'source_commit=%s\nbuild_run=%s\npackage_version=%s\n' \
+        "$SOURCE_COMMIT" "$OCI_BUILD_RUN_ID" "$PACKAGE_VERSION" > release.txt
+      find db scripts -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+      sha256sum release.txt >> SHA256SUMS
+      sha256sum --check SHA256SUMS
+      tar -czf "$OCI_PRIMARY_SOURCE_DIR/output/database-migrations.tar.gz" .
+      cd "$OCI_PRIMARY_SOURCE_DIR"
+      PACKAGE_SHA256=$(sha256sum output/database-migrations.tar.gz | cut -d ' ' -f 1)
+      export PACKAGE_SHA256
+      tar -tzf output/database-migrations.tar.gz
+      printf 'SOURCE_COMMIT=%s\nPACKAGE_VERSION=%s\nPACKAGE_SHA256=%s\n' \
+        "$SOURCE_COMMIT" "$PACKAGE_VERSION" "$PACKAGE_SHA256"
+      echo MIGRATION_PACKAGE_READY
+outputArtifacts:
+  - name: database-migration-package
+    type: BINARY
+    location: output/database-migrations.tar.gz
