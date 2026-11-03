@@ -2198,7 +2198,7 @@ git show HEAD:.gitattributes
 git show HEAD:.gitignore
 ~~~
 
-Comparar esos contenidos con el anexo. No asumir que el workspace Windows está sincronizado con main; aquí no se hizo fetch/pull al repositorio de OCI y el .git local no tiene commits.
+Comparar esos contenidos con el anexo. No asumir que el workspace Windows está sincronizado con main de OCI; aquí no se hizo fetch/pull al repositorio de OCI. El estado inicial del .git local era sin commits; posteriormente se creó y publicó la copia GitHub descrita en §30.
 
 En consola abrir cada artefacto Inline → Edit y comparar YAML completo. Copiar cambios locales a la consola solo si se desea modificar su ejecución; no hace falta recrear el artefacto. Para la versión final de apply el resumen VERBOSE ya quedó confirmado por los logs.
 
@@ -2253,7 +2253,7 @@ Los cuatro Command specification usan Allow parameterization desactivado. El Gen
 
 El clon mostrado posteriormente en VS Code está en /home/opc/Database-DevOps de la VM. Las instrucciones iniciales indicaban /home/opc/projects/Database-DevOps; usar la ruta real devuelta por git rev-parse --show-toplevel.
 
-Este workspace Windows es una copia organizada y no una descarga en vivo de OCI ni de la VM. El .git local sigue sin commits; no se hizo publicación desde Windows.
+Este workspace Windows es una copia organizada y no una descarga en vivo de OCI ni de la VM. El 3 de noviembre de 2026 se publicó en https://github.com/JohnContrerasDiaz/DevOps-Database, rama main, mediante el remoto github y Git Credential Manager de Windows. El remoto origin de OCI se conserva; publicar en GitHub no actualiza el repositorio OCI ni la VM.
 
 ## Pendientes
 
@@ -2490,7 +2490,32 @@ La sustitución de verify.sql por un reporte genérico se explicó como mejora p
 - XML bien formado, dos changesets hermanos, IDs únicos y referencias SQL locales comprobados.
 - La sintaxis Bash de los YAML se verifica localmente; no se ejecuta la base.
 - Sin fetch/pull de la VM o tenancy: las fuentes son la conversación y las copias locales. No se afirma equivalencia byte por byte con los Inline actuales ni el main remoto.
-- No se ejecutaron commit, push, merge, deployment ni DDL desde este workspace.
+- En la actualización de archivos descrita en esta sección no se ejecutaron commit, push, merge, deployment ni DDL. La publicación GitHub posterior se registra en §30; no ejecutó cambios en OCI ni ATP.
 - No se recibió evidencia de éxito posterior al fallo XML de la prueba 002.
 
 El respaldo previo a esta actualización se dejó fuera del workspace, en TEMP, como Database-DevOps-before-update-20261103-080721.zip. No es un artefacto del pipeline ni debe publicarse.
+
+## 30. Publicación de la copia local en GitHub
+
+El 3 de noviembre de 2026, por solicitud explícita del usuario, se publicaron los 17 archivos de este workspace en https://github.com/JohnContrerasDiaz/DevOps-Database, rama main. El repositorio destino no tenía referencias antes de la publicación.
+
+- Autenticación: helper manager de Git for Windows, Git Credential Manager 2.6.1, usando las credenciales disponibles sin leer ni mostrar tokens/passwords.
+- Remoto añadido: github → https://github.com/JohnContrerasDiaz/DevOps-Database.git.
+- Remoto conservado: origin → repositorio OCI Database-Changes.
+- Se creó un commit inicial con los archivos y se publicó mediante git push github main, sin force. Se actualizó después esta documentación para reflejar la publicación.
+- El push GitHub no cambia el source repository del build OCI, no dispara por sí mismo el trigger del repositorio OCI, no sincroniza el clon Linux y no aplica DDL.
+- El estado de 002 continúa pendiente de evidencia de ejecución exitosa; publicarlo no demuestra que se haya aplicado.
+
+Para próximas publicaciones desde este workspace Windows se debe seleccionar explícitamente el remoto github. No usar git push origin pensando que apunta a GitHub.
+
+Los comandos de publicación ejecutados fueron:
+
+~~~powershell
+git remote add github https://github.com/JohnContrerasDiaz/DevOps-Database.git
+git add -- .gitattributes .gitignore README.md CONFIGURACION_COMPLETA_OCI_DATABASE_DEVOPS.md build_spec.yaml db/changelog.xml db/changes/001_create_devops_demo.sql db/changes/002_add_estado.sql docs/automatic-deployment.md infra/database-user.sql infra/devops-policy.txt infra/dynamic-group-rules.txt pipelines/01-network-probe.yaml pipelines/02-dbtools-login.yaml pipelines/03-verify-package.yaml pipelines/04-apply-migrations.yaml scripts/verify.sql
+git -c core.whitespace=-blank-at-eol diff --cached --check
+git commit -m "Publish Oracle Database DevOps configuration and implementation guide"
+git -c credential.interactive=never push github main
+~~~
+
+La opción de whitespace conserva las líneas vacías indentadas del YAML y de sus copias documentales; no modifica los archivos. credential.interactive=never permite usar la credencial almacenada y falla si se requiere interacción, en lugar de imprimirla o incrustarla en una URL.

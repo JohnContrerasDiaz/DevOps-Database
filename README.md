@@ -31,7 +31,7 @@ Los cuatro Command specification usan Allow parameterization desactivado. El Gen
 
 El clon mostrado posteriormente en VS Code está en /home/opc/Database-DevOps de la VM. Las instrucciones iniciales indicaban /home/opc/projects/Database-DevOps; usar la ruta real devuelta por git rev-parse --show-toplevel.
 
-Este workspace Windows es una copia organizada y no una descarga en vivo de OCI ni de la VM. El .git local sigue sin commits; no se hizo publicación desde Windows.
+Este workspace Windows es una copia organizada y no una descarga en vivo de OCI ni de la VM. El 3 de noviembre de 2026 se publicó en https://github.com/JohnContrerasDiaz/DevOps-Database, rama main, mediante el remoto github y Git Credential Manager de Windows. El remoto origin de OCI se conserva; publicar en GitHub no actualiza el repositorio OCI ni la VM.
 
 ## Pendientes
 
